@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rimborso Accisa Gasolio – Dogane</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0d14;
+    --surface: rgba(255,255,255,0.04);
+    --surface2: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.1);
+    --border2: rgba(255,255,255,0.18);
+    --accent: #00d4a8;
+    --accent2: #0077ff;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 20% 0%, rgba(0,212,168,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(0,119,255,0.07) 0%, transparent 60%);
+  }
+  .app { max-width: 900px; margin: 0 auto; padding: 40px 20px 80px; }
+
+  /* CONFIG BANNER */
+  .config-banner {
+    background: rgba(245,158,11,0.1);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 28px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 0.82rem;
+  }
+  .config-banner.hidden { display: none; }
+  .config-banner input {
+    flex: 1; background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(245,158,11,0.4);
+    border-radius: 8px; color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.82rem; padding: 8px 12px; outline: none;
+  }
+  .config-banner input:focus { border-color: var(--accent); }
+
+  .header { display: flex; align-items: center; gap: 16px; margin-bottom: 48px; }
+  .header-icon {
+    width: 52px; height: 52px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; flex-shrink: 0;
+  }
+  .header h1 { font-size: 1.6rem; font-weight: 800; line-height: 1.1; }
+  .header p { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+
+  .stepper { display: flex; margin-bottom: 40px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+  .step {
+    flex: 1; padding: 14px 10px; text-align: center;
+    background: var(--surface); font-size: 0.72rem; font-weight: 600;
+    color: var(--muted); transition: all .3s;
+    border-right: 1px solid var(--border); cursor: default; user-select: none;
+  }
+  .step:last-child { border-right: none; }
+  .step.active { background: rgba(0,212,168,0.1); color: var(--accent); }
+  .step.done { background: rgba(0,212,168,0.05); color: var(--accent); opacity: .7; }
+  .step-num { display: block; font-size: 1.1rem; font-weight: 800; margin-bottom: 2px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 28px;
+    backdrop-filter: blur(20px); margin-bottom: 20px;
+  }
+  .card-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+  .card-title span { font-size: 1.3rem; }
+
+  label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  input[type=text], input[type=number], select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 0.9rem;
+    padding: 12px 14px; outline: none; transition: border-color .2s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  select option { background: #1a1f2e; }
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .mt { margin-top: 16px; }
+
+  .btn {
+    padding: 12px 28px; border-radius: 10px; font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 0.88rem; cursor: pointer; border: none;
+    transition: all .2s; letter-spacing: .03em;
+  }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #00a884); color: #000; }
+  .btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
+  .btn-secondary:hover { background: var(--surface); }
+  .btn-danger { background: rgba(239,68,68,.15); color: var(--danger); border: 1px solid rgba(239,68,68,.3); }
+  .btn-sm { padding: 7px 14px; font-size: 0.78rem; }
+  .btn-accent2 { background: linear-gradient(135deg, var(--accent2), #0055cc); color: #fff; }
+  .btn-warn { background: linear-gradient(135deg, var(--warn), #d97706); color: #000; }
+
+  .vehicle-row { display: grid; grid-template-columns: 1fr 1fr 40px; gap: 10px; align-items: end; margin-bottom: 10px; }
+  .remove-btn {
+    width: 38px; height: 38px; background: rgba(239,68,68,.1);
+    border: 1px solid rgba(239,68,68,.2); color: var(--danger);
+    border-radius: 8px; cursor: pointer; font-size: 1rem;
+    display: flex; align-items: center; justify-content: center; transition: all .2s;
+  }
+  .remove-btn:hover { background: rgba(239,68,68,.2); }
+
+  .upload-zone {
+    border: 2px dashed var(--border2); border-radius: var(--radius);
+    padding: 40px; text-align: center; cursor: pointer;
+    transition: all .3s; position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(0,212,168,0.04); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .upload-zone h3 { font-size: 0.95rem; margin-bottom: 6px; }
+  .upload-zone p { color: var(--muted); font-size: 0.78rem; }
+
+  .invoice-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px 16px;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 12px;
+  }
+  .invoice-item .inv-icon { font-size: 1.3rem; flex-shrink: 0; }
+  .invoice-item .inv-info { flex: 1; }
+  .invoice-item .inv-name { font-size: 0.85rem; font-weight: 600; }
+  .invoice-item .inv-meta { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+  .badge-ok { background: rgba(0,212,168,.15); color: var(--accent); }
+  .badge-warn { background: rgba(245,158,11,.15); color: var(--warn); }
+  .badge-process { background: rgba(0,119,255,.15); color: var(--accent2); }
+  .badge-error { background: rgba(239,68,68,.15); color: var(--danger); }
+
+  .anomaly-panel { background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.25); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .anomaly-title { color: var(--warn); font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { background: rgba(255,255,255,0.05); padding: 10px 12px; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); font-family: 'DM Mono', monospace; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .summary-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 18px; }
+  .summary-card .sc-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+  .summary-card .sc-targa { font-size: 1rem; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+  .summary-card .sc-litri { font-size: 1.3rem; font-weight: 700; font-family: 'DM Mono', monospace; }
+  .summary-card .sc-rimborso { font-size: 0.85rem; color: var(--accent2); font-family: 'DM Mono', monospace; margin-top: 4px; font-weight: 600; }
+
+  .total-box {
+    background: linear-gradient(135deg, rgba(0,212,168,0.1), rgba(0,119,255,0.1));
+    border: 1px solid rgba(0,212,168,0.3); border-radius: var(--radius);
+    padding: 22px 28px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
+  }
+  .total-box .tot-label { font-size: 0.85rem; color: var(--muted); }
+  .total-box .tot-value { font-size: 2rem; font-weight: 800; font-family: 'DM Mono', monospace; color: var(--accent); }
+
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+  .info-row { display: flex; gap: 8px; align-items: center; font-size: 0.78rem; color: var(--muted); margin-top: 10px; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+
+  .progress-bar-wrap { background: rgba(255,255,255,0.08); border-radius: 4px; height: 6px; margin-top: 8px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 4px; transition: width .4s; }
+
+  .hidden { display: none !important; }
+  .step-panel { animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  @media print {
+    .actions, .stepper, .config-banner, .upload-zone, #analyzeBtn { display: none !important; }
+    body { background: white; color: black; }
+    .card { border: 1px solid #ddd; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- CONFIG BANNER: inserisci URL del tuo Worker Cloudflare -->
+  <div class="config-banner" id="configBanner">
+    <span>⚙️</span>
+    <div style="flex:1">
+      <div style="font-weight:700;margin-bottom:6px;color:var(--warn)">Configura il tuo Worker URL</div>
+      <div style="color:var(--muted);margin-bottom:8px;font-size:0.75rem;">Incolla l'URL del tuo Cloudflare Worker (es: https://accisa-proxy.tuonome.workers.dev)</div>
+      <input type="text" id="workerUrl" placeholder="https://accisa-proxy.tuonome.workers.dev" value="">
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="saveWorkerUrl()">Salva</button>
+  </div>
+
+  <div class="header">
+    <div class="header-icon">⛽</div>
+    <div>
+      <h1>Rimborso Accisa Gasolio</h1>
+      <p>Dichiarazione per riduzione aliquota – Agenzia delle Dogane e dei Monopoli</p>
+    </div>
+  </div>
+
+  <div class="stepper">
+    <div class="step active" id="stp0"><span class="step-num">1</span>Periodo</div>
+    <div class="step" id="stp1"><span class="step-num">2</span>Veicoli</div>
+    <div class="step" id="stp2"><span class="step-num">3</span>Fatture</div>
+    <div class="step" id="stp3"><span class="step-num">4</span>Anomalie</div>
+    <div class="step" id="stp4"><span class="step-num">5</span>Report</div>
+  </div>
+
+  <!-- STEP 0 -->
+  <div id="panel0" class="step-panel">
+    <div class="card">
+      <div class="card-title"><span>📅</span> Periodo di riferimento e parametri</div>
+      <div class="grid-2">
+        <div>
+          <label>Anno</label>
+          <select id="anno"></select>
+        </div>
+        <div>
+          <label>Trimestre</label>
+          <select id="trimestre">
+            <option value="1">1° Trimestre (gen–mar)</option>
+            <option value="2">2° Trimestre (apr–giu)</option>
+            <option value="3">3° Trimestre (lug–set)</option>
+            <option value="4">4° Trimestre (ott–dic)</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt">
+        <label>Importo rimborso per ogni 1.000 litri consumati (€)</label>
+        <input type="number" id="rimborso1000" placeholder="es. 214.18" step="0.01" min="0">
+        <div class="info-row">💡 Verificare il valore aggiornato sul sito dell'Agenzia delle Dogane</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="goStep(1)">Avanti →</button>
+    </div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div id="panel1" class="step-panel hidden">
+    <div class="card">
+      <div class="card-title"><span>🚛</span> Autocarri in uso nel trimestre</div>
+      <div id="vehicleList"></div>
+      <button class="btn btn-secondary btn-sm mt" onclick="addVehicle()">+ Aggiungi autocarro</button>
+    </div>
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="goStep(0)">← Indietro</button>
+      <button class="btn btn-primary" onclick="goStep(2)">Avanti →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div id="panel2" class="step-panel hidden">
+    <div class="card">
+      <div class="card-title"><span>📄</span> Carica le fatture di acquisto carburante</div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" multiple accept=".pdf,image/*">
+        <div class="upload-icon">📎</div>
+        <h3>Trascina i file qui o clicca per selezionare</h3>
+        <p>Supportati: PDF, JPG, PNG – puoi caricare più file contemporaneamente</p>
+      </div>
+      <div id="invoiceList" style="margin-top:16px;"></div>
+    </div>
+    <div class="card hidden" id="analyzeCard">
+      <div class="card-title"><span>🤖</span> Analisi AI delle fatture</div>
+      <div id="progressLabel" style="font-size:0.82rem;color:var(--muted);margin-bottom:6px;"></div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:0%"></div></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="goStep(1)">← Indietro</button>
+      <button class="btn btn-primary hidden" id="analyzeBtn" onclick="startAnalysis()">🤖 Analizza fatture con AI</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div id="panel3" class="step-panel hidden">
+    <div id="anomalyContainer"></div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="finalizeAndReport()">Genera Report →</button>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div id="panel4" class="step-panel hidden">
+    <div class="total-box" id="totalBox"></div>
+    <div class="summary-grid" id="summaryGrid"></div>
+    <div class="card">
+      <div class="card-title"><span>📊</span> Dettaglio fatture per veicolo</div>
+      <div class="tbl-wrap"><table id="reportTable"></table></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-accent2" onclick="exportExcel()">⬇ Esporta Excel</button>
+      <button class="btn btn-warn" onclick="window.print()">🖨 Stampa / PDF</button>
+      <button class="btn btn-secondary" onclick="resetApp()">↺ Nuova dichiarazione</button>
+    </div>
+  </div>
+
+</div>
+<script>
+// ── CONFIG ─────────────────────────────────────────────────
+let WORKER_URL = localStorage.getItem('accisa_worker_url') || '';
+
+function saveWorkerUrl() {
+  const v = document.getElementById('workerUrl').value.trim().replace(/\/$/, '');
+  if (!v) { alert('Inserisci l\'URL del Worker'); return; }
+  WORKER_URL = v;
+  localStorage.setItem('accisa_worker_url', v);
+  document.getElementById('configBanner').classList.add('hidden');
+}
+
+// Restore saved URL
+if (WORKER_URL) {
+  document.getElementById('workerUrl').value = WORKER_URL;
+  document.getElementById('configBanner').classList.add('hidden');
+}
+
+// Populate anno select
+const annoSel = document.getElementById('anno');
+for (let y = 2022; y <= 2030; y++) {
+  const o = document.createElement('option');
+  o.value = y; o.textContent = y;
+  if (y === new Date().getFullYear()) o.selected = true;
+  annoSel.appendChild(o);
+}
+
+// ── STATE ──────────────────────────────────────────────────
+let state = { anno:null, trimestre:null, rimborso1000:null, vehicles:[], invoices:[], anomalies:[] };
+
+// ── STEPPER ────────────────────────────────────────────────
+function goStep(n) {
+  if (n === 1 && !validateStep0()) return;
+  if (n === 2 && !validateStep1()) return;
+  for (let i = 0; i < 5; i++) {
+    document.getElementById('panel'+i).classList.toggle('hidden', i!==n);
+    const s = document.getElementById('stp'+i);
+    s.classList.toggle('active', i===n);
+    s.classList.toggle('done', i<n);
+  }
+  window.scrollTo(0,0);
+}
+
+function validateStep0() {
+  const rimb = parseFloat(document.getElementById('rimborso1000').value);
+  if (!rimb || rimb <= 0) { alert('Inserisci l\'importo rimborso per 1.000 litri'); return false; }
+  state.anno = parseInt(document.getElementById('anno').value);
+  state.trimestre = parseInt(document.getElementById('trimestre').value);
+  state.rimborso1000 = rimb;
+  return true;
+}
+
+function validateStep1() {
+  const rows = document.querySelectorAll('.veh-row');
+  if (!rows.length) { alert('Inserisci almeno un autocarro'); return false; }
+  state.vehicles = [];
+  let ok = true;
+  rows.forEach(row => {
+    const targa = row.querySelector('.veh-targa').value.trim().toUpperCase();
+    const km = parseFloat(row.querySelector('.veh-km').value) || 0;
+    if (!targa) ok = false;
+    state.vehicles.push({ targa, km });
+  });
+  if (!ok) { alert('Inserisci la targa per tutti i veicoli'); return false; }
+  const targhe = state.vehicles.map(v => v.targa);
+  if (new Set(targhe).size !== targhe.length) { alert('Sono presenti targhe duplicate'); return false; }
+  return true;
+}
+
+// ── VEHICLES ───────────────────────────────────────────────
+function addVehicle() {
+  const first = !document.querySelectorAll('.veh-row').length;
+  const div = document.createElement('div');
+  div.className = 'vehicle-row veh-row';
+  div.innerHTML = `
+    <div>${first ? '<label>Targa</label>' : ''}
+      <input class="veh-targa" type="text" placeholder="AB123CD" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div>${first ? '<label>Km percorsi nel trimestre</label>' : ''}
+      <input class="veh-km" type="number" placeholder="es. 12500" min="0">
+    </div>
+    <button class="remove-btn" onclick="this.closest('.veh-row').remove()">✕</button>`;
+  document.getElementById('vehicleList').appendChild(div);
+}
+addVehicle();
+
+// ── FILE UPLOAD ────────────────────────────────────────────
+const uploadZone = document.getElementById('uploadZone');
+const fileInput  = document.getElementById('fileInput');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+function handleFiles(files) {
+  Array.from(files).forEach(f => {
+    if (!state.invoices.find(i => i.name === f.name))
+      state.invoices.push({ file:f, name:f.name, status:'pending', data:null });
+  });
+  renderInvoiceList();
+  document.getElementById('analyzeBtn').classList.toggle('hidden', !state.invoices.length);
+}
+
+function removeInvoice(i) {
+  state.invoices.splice(i, 1);
+  renderInvoiceList();
+  document.getElementById('analyzeBtn').classList.toggle('hidden', !state.invoices.length);
+}
+
+function renderInvoiceList() {
+  const el = document.getElementById('invoiceList');
+  el.innerHTML = state.invoices.map((inv, i) => {
+    const badges = {
+      pending:    '<span class="badge badge-warn">In attesa</span>',
+      processing: '<span class="badge badge-process"><span class="spinner"></span>Analisi…</span>',
+      ok:         '<span class="badge badge-ok">✓ OK</span>',
+      anomaly:    '<span class="badge badge-warn">⚠ Anomalia targa</span>',
+      error:      '<span class="badge badge-error">✕ Errore AI</span>',
+    };
+    return `<div class="invoice-item">
+      <div class="inv-icon">${inv.name.toLowerCase().endsWith('.pdf') ? '📄' : '🖼'}</div>
+      <div class="inv-info">
+        <div class="inv-name">${inv.name}</div>
+        <div class="inv-meta">${(inv.file.size/1024).toFixed(0)} KB${inv.data ? ` · ${inv.data.fornitore||''} · ${inv.data.totLitri||0} L` : ''}</div>
+      </div>
+      ${badges[inv.status]||''}
+      <button class="btn btn-danger btn-sm" onclick="removeInvoice(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ── ANALYSIS ───────────────────────────────────────────────
+async function startAnalysis() {
+  if (!WORKER_URL) {
+    document.getElementById('configBanner').classList.remove('hidden');
+    alert('Inserisci prima l\'URL del tuo Cloudflare Worker!');
+    return;
+  }
+
+  document.getElementById('analyzeCard').classList.remove('hidden');
+  document.getElementById('analyzeBtn').disabled = true;
+
+  const targhe = state.vehicles.map(v => v.targa).join(', ');
+
+  for (let i = 0; i < state.invoices.length; i++) {
+    const inv = state.invoices[i];
+    if (inv.status === 'ok' || inv.status === 'anomaly') continue; // già processata
+
+    inv.status = 'processing';
+    renderInvoiceList();
+    document.getElementById('progressLabel').textContent = `Analisi ${i+1} di ${state.invoices.length}: ${inv.name}`;
+    document.getElementById('progressBar').style.width = (i / state.invoices.length * 100) + '%';
+
+    try {
+      const b64 = await fileToBase64(inv.file);
+      const isPdf = inv.file.type === 'application/pdf' || inv.name.toLowerCase().endsWith('.pdf');
+      const mediaType = isPdf ? 'application/pdf' : inv.file.type;
+
+      const prompt = `Sei un assistente specializzato nell'analisi di fatture italiane di acquisto carburante.
+Analizza il documento allegato ed estrai in formato JSON:
+- numero_fattura: stringa
+- data_fattura: stringa GG/MM/AAAA
+- fornitore: nome fornitore/distributore
+- righe: array di { "targa": string|null, "litri": number, "note": string }
+  Per ogni riga di rifornimento gasolio/diesel: targa del veicolo se presente (altrimenti null), litri, note.
+- totale_litri: numero totale litri gasolio
+
+Veicoli azienda (targhe possibili): ${targhe}
+
+Rispondi SOLO con il JSON puro, senza markdown né testo aggiuntivo.`;
+
+      const body = {
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: isPdf ? 'document' : 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
+            { type: 'text', text: prompt }
+          ]
+        }]
+      };
+
+      const resp = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const data = await resp.json();
+      const text = (data.content || []).map(c => c.text || '').join('');
+      const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+
+      inv.data = {
+        numero:   parsed.numero_fattura || inv.name,
+        data:     parsed.data_fattura || '',
+        fornitore:parsed.fornitore || '',
+        totLitri: parsed.totale_litri || 0,
+        righe:    (parsed.righe || []).map(r => ({
+          targa: r.targa ? r.targa.toUpperCase() : null,
+          litri: parseFloat(r.litri) || 0,
+          note:  r.note || ''
+        }))
+      };
+
+      inv.status = inv.data.righe.some(r => !r.targa) ? 'anomaly' : 'ok';
+    } catch (e) {
+      console.error(e);
+      inv.status = 'error';
+      inv.data = { numero: inv.name, data: '', fornitore: 'Errore analisi', totLitri: 0, righe: [] };
+    }
+
+    renderInvoiceList();
+  }
+
+  document.getElementById('progressBar').style.width = '100%';
+  document.getElementById('progressLabel').textContent = '✓ Analisi completata!';
+  document.getElementById('analyzeBtn').disabled = false;
+
+  // Build anomalies
+  state.anomalies = [];
+  state.invoices.forEach((inv, invIdx) => {
+    if (!inv.data) return;
+    inv.data.righe.forEach((r, rigaIdx) => {
+      if (!r.targa) state.anomalies.push({ invIdx, rigaIdx, desc: `${r.litri} L – ${r.note||'nessuna nota'}`, litri: r.litri, assignedTarga: null });
+    });
+  });
+
+  goStep(3);
+  renderAnomalies();
+}
+
+function fileToBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = () => rej(new Error('Lettura file fallita'));
+    r.readAsDataURL(file);
+  });
+}
+
+// ── ANOMALIES ──────────────────────────────────────────────
+function renderAnomalies() {
+  const el = document.getElementById('anomalyContainer');
+  if (!state.anomalies.length) {
+    el.innerHTML = `<div class="card"><div class="card-title"><span>✅</span>Nessuna anomalia rilevata</div><p style="color:var(--muted)">Tutte le righe fattura hanno una targa associata. Puoi procedere con il report.</p></div>`;
+    return;
+  }
+
+  const opzioni = state.vehicles.map(v => `<option value="${v.targa}">${v.targa}</option>`).join('');
+  let html = `<div class="anomaly-panel"><div class="anomaly-title">⚠ ${state.anomalies.length} righe senza targa – assegnazione richiesta</div>`;
+
+  state.anomalies.forEach((an, i) => {
+    const inv = state.invoices[an.invIdx];
+    html += `<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;margin-bottom:10px;">
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;">
+        Fattura <strong style="color:var(--text)">${inv.data.numero}</strong> · ${inv.data.fornitore} ·
+        Riga: <em>${an.desc}</em>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <label style="margin:0;white-space:nowrap;font-size:0.75rem;">Assegna a:</label>
+        <select id="an_${i}" style="flex:1" onchange="state.anomalies[${i}].assignedTarga=this.value">
+          <option value="">– Seleziona targa –</option>
+          ${opzioni}
+        </select>
+      </div>
+    </div>`;
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function finalizeAndReport() {
+  for (let i = 0; i < state.anomalies.length; i++) {
+    const sel = document.getElementById('an_' + i);
+    if (sel && !sel.value) { alert('Assegna una targa a tutte le righe anomalie prima di continuare'); return; }
+    if (sel) state.anomalies[i].assignedTarga = sel.value;
+  }
+  state.anomalies.forEach(an => {
+    state.invoices[an.invIdx].data.righe[an.rigaIdx].targa = an.assignedTarga;
+  });
+  buildReport();
+  goStep(4);
+}
+
+// ── REPORT ─────────────────────────────────────────────────
+function getLitriPerTarga() {
+  const map = {};
+  state.vehicles.forEach(v => map[v.targa] = 0);
+  state.invoices.forEach(inv => {
+    if (!inv.data) return;
+    inv.data.righe.forEach(r => {
+      if (r.targa) map[r.targa] = (map[r.targa] || 0) + r.litri;
+    });
+  });
+  return map;
+}
+
+function buildReport() {
+  const rimborso1000 = state.rimborso1000;
+  const trimNames = ['','1° Trim.','2° Trim.','3° Trim.','4° Trim.'];
+  const perTarga = getLitriPerTarga();
+  const totalLitri = Object.values(perTarga).reduce((a,b) => a+b, 0);
+  const totalRimborso = totalLitri / 1000 * rimborso1000;
+
+  document.getElementById('totalBox').innerHTML = `
+    <div>
+      <div class="tot-label">Rimborso totale stimato – ${trimNames[state.trimestre]} ${state.anno}</div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-top:4px;">${totalLitri.toFixed(0)} litri totali · €${rimborso1000.toFixed(2)}/1.000L</div>
+    </div>
+    <div class="tot-value">€ ${totalRimborso.toFixed(2)}</div>`;
+
+  document.getElementById('summaryGrid').innerHTML = Object.entries(perTarga).map(([targa, litri]) => {
+    const km = state.vehicles.find(v => v.targa === targa)?.km || 0;
+    return `<div class="summary-card">
+      <div class="sc-label">Veicolo</div>
+      <div class="sc-targa">${targa}</div>
+      <div class="sc-litri">${litri.toFixed(0)} L</div>
+      ${km ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:2px;">${km.toLocaleString('it-IT')} km</div>` : ''}
+      <div class="sc-rimborso">€ ${(litri/1000*rimborso1000).toFixed(2)}</div>
+    </div>`;
+  }).join('');
+
+  const targhe = state.vehicles.map(v => v.targa);
+  let thead = '<thead><tr><th>N° Fattura</th><th>Data</th><th>Fornitore</th>' + targhe.map(t => `<th>${t}</th>`).join('') + '<th>Tot. L</th></tr></thead>';
+  let tbody = '<tbody>';
+  const totCols = targhe.map(() => 0);
+
+  state.invoices.forEach(inv => {
+    if (!inv.data) return;
+    const cols = targhe.map(() => 0);
+    inv.data.righe.forEach(r => { const idx = targhe.indexOf(r.targa); if (idx >= 0) cols[idx] += r.litri; });
+    cols.forEach((c, i) => totCols[i] += c);
+    const rowTot = cols.reduce((a,b) => a+b, 0);
+    tbody += `<tr><td>${inv.data.numero}</td><td>${inv.data.data}</td><td>${inv.data.fornitore}</td>${cols.map(c => `<td>${c > 0 ? c.toFixed(0) : ''}</td>`).join('')}<td><strong>${rowTot.toFixed(0)}</strong></td></tr>`;
+  });
+
+  const grandTotal = totCols.reduce((a,b) => a+b, 0);
+  tbody += `<tr style="background:rgba(0,212,168,0.06);font-weight:700;"><td colspan="3">TOTALE</td>${totCols.map(c => `<td>${c.toFixed(0)}</td>`).join('')}<td>${grandTotal.toFixed(0)}</td></tr>`;
+  tbody += `<tr style="background:rgba(0,119,255,0.06);"><td colspan="3" style="color:var(--accent2);">Rimborso (€)</td>${totCols.map(c => `<td style="color:var(--accent2);">€${(c/1000*rimborso1000).toFixed(2)}</td>`).join('')}<td style="color:var(--accent2);">€${totalRimborso.toFixed(2)}</td></tr>`;
+  tbody += '</tbody>';
+
+  document.getElementById('reportTable').innerHTML = thead + tbody;
+}
+
+// ── EXCEL ──────────────────────────────────────────────────
+function exportExcel() {
+  const r1k = state.rimborso1000;
+  const targhe = state.vehicles.map(v => v.targa);
+  const trimNames = ['','1° Trimestre','2° Trimestre','3° Trimestre','4° Trimestre'];
+
+  // Riepilogo
+  const perTarga = getLitriPerTarga();
+  const summaryRows = [
+    [`Rimborso Accisa Gasolio – ${trimNames[state.trimestre]} ${state.anno}`],
+    [`Importo rimborso: €${r1k}/1.000 L`],
+    [],
+    ['Targa','Km trimestre','Litri consumati','Rimborso (€)'],
+    ...state.vehicles.map(v => {
+      const litri = perTarga[v.targa] || 0;
+      return [v.targa, v.km, +litri.toFixed(0), +(litri/1000*r1k).toFixed(2)];
+    }),
+    [],
+    ['TOTALE','', +Object.values(perTarga).reduce((a,b)=>a+b,0).toFixed(0), +(Object.values(perTarga).reduce((a,b)=>a+b,0)/1000*r1k).toFixed(2)],
+  ];
+
+  // Dettaglio
+  const detailRows = [['N° Fattura','Data','Fornitore',...targhe,'TOTALE LITRI']];
+  const totCols = targhe.map(() => 0);
+
+  state.invoices.forEach(inv => {
+    if (!inv.data) return;
+    const cols = targhe.map(() => 0);
+    inv.data.righe.forEach(r => { const idx = targhe.indexOf(r.targa); if (idx >= 0) cols[idx] += r.litri; });
+    cols.forEach((c,i) => totCols[i] += c);
+    detailRows.push([inv.data.numero, inv.data.data, inv.data.fornitore, ...cols, cols.reduce((a,b)=>a+b,0)]);
+  });
+
+  const grandTotal = totCols.reduce((a,b)=>a+b,0);
+  detailRows.push(['TOTALE','','',...totCols, grandTotal]);
+  detailRows.push(['Rimborso (€)','','',...totCols.map(c=>+(c/1000*r1k).toFixed(2)), +(grandTotal/1000*r1k).toFixed(2)]);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Riepilogo');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailRows), 'Dettaglio Fatture');
+  XLSX.writeFile(wb, `Accisa_Gasolio_${state.trimestre}T${state.anno}.xlsx`);
+}
+
+// ── RESET ──────────────────────────────────────────────────
+function resetApp() {
+  if (!confirm('Resettare? Tutti i dati inseriti andranno persi.')) return;
+  state = { anno:null, trimestre:null, rimborso1000:null, vehicles:[], invoices:[], anomalies:[] };
+  document.getElementById('vehicleList').innerHTML = '';
+  document.getElementById('invoiceList').innerHTML = '';
+  document.getElementById('analyzeCard').classList.add('hidden');
+  document.getElementById('analyzeBtn').classList.add('hidden');
+  document.getElementById('progressBar').style.width = '0%';
+  addVehicle();
+  goStep(0);
+}
+</script>
+</body>
+</html>
